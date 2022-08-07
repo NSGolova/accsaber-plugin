@@ -5,7 +5,7 @@ using Zenject;
 
 namespace AccSaber.Utils
 {
-    internal class UserIDUtils : IInitializable
+    public class UserIDUtils : IInitializable
     {
         private readonly IPlatformUserModel _userModel = null!;
 

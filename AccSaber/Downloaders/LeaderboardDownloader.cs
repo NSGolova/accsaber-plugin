@@ -12,7 +12,7 @@ namespace AccSaber.Downloaders
     {
         private readonly IHttpService _httpService;
         private SiraLog _siraLog;
-        private readonly Dictionary<IDifficultyBeatmap, List<AccSaberLeaderboardEntry>> leaderboardCache = new();
+        private readonly Dictionary<string, List<AccSaberLeaderboardEntry>> leaderboardCache = new();
 
         public LeaderboardDownloader(IHttpService httpService, SiraLog siraLog)
         {
@@ -20,19 +20,21 @@ namespace AccSaber.Downloaders
             _siraLog = siraLog;
         }
         
-        public async Task<List<AccSaberLeaderboardEntry>> GetLevelInfoAsync(IDifficultyBeatmap difficultyBeatmap, CancellationToken? cancellationToken = null)
+        public async Task<List<AccSaberLeaderboardEntry>> GetLevelInfoAsync(
+            IDifficultyBeatmap difficultyBeatmap, 
+            CancellationToken? cancellationToken = null)
         {
-            if (leaderboardCache.TryGetValue(difficultyBeatmap, out var cachedValue))
-            {
-                _siraLog.Debug($"returning {cachedValue}");
-                return cachedValue;
-            }
-            
             var beatmapString = GameUtils.DifficultyBeatmapToString(difficultyBeatmap);
             if (beatmapString == null)
             {
                 _siraLog.Warn("Variable \"beatmapString\" is null!");
                 return null;
+            }
+
+            if (leaderboardCache.TryGetValue(beatmapString, out var cachedValue))
+            {
+                _siraLog.Debug($"returning {cachedValue}");
+                return cachedValue;
             }
 
             try
@@ -46,7 +48,7 @@ namespace AccSaber.Downloaders
                 var levelInfo = await ResponseParser.ParseWebResponse<List<AccSaberLeaderboardEntry>>(webResponse);
                 _siraLog.Debug(levelInfo);
 
-                leaderboardCache[difficultyBeatmap] = levelInfo;
+                leaderboardCache[beatmapString] = levelInfo;
                 return levelInfo;
             }
             catch (TaskCanceledException)

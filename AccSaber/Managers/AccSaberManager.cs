@@ -25,9 +25,7 @@ namespace AccSaber.Managers
 
         private readonly AccSaberPanelViewController _accSaberPanelController;
         protected override ViewController panelViewController => _accSaberPanelController;
-
-        private readonly AccSaberLeaderboardViewController _mainLeaderboardViewController;
-        protected override ViewController leaderboardViewController => _mainLeaderboardViewController;
+        protected override ViewController leaderboardViewController => _accSaberLeaderboardViewController;
 
         private readonly LevelCollectionNavigationController _navigationController;
 
@@ -36,16 +34,16 @@ namespace AccSaber.Managers
         private readonly List<AccSaberAPISong> _accSaberAPISong;
         private List<AccSaberLeaderboardEntry> _leaderboardEntries;
         private List<AccSaberUserModel> _accSaberUserModels;
-        private AccSaberPanelViewController _panelViewController;
 
-        private readonly List<IDifficultyBeatmapUpdater> difficultyBeatmapUpdaters;
+        
 
         private readonly AccSaberLeaderboardViewController _accSaberLeaderboardViewController;
-        private readonly AccSaberPanelViewController _accSaberPanelViewController;
 
-        private readonly List<INotifyViewActivated> _notifyViewActivateds;
-        private readonly List<ILeaderboardEntriesUpdater> _leaderboardEntriesUpdaters;
-        
+        private List<INotifyViewActivated> _notifyViewActivateds;
+
+        private List<ILeaderboardEntriesUpdater> _leaderboardEntriesUpdaters;
+        private List<IDifficultyBeatmapUpdater> difficultyBeatmapUpdaters;
+
         private LeaderboardDownloader _leaderboardDownloader;
 
         private readonly SiraLog _log;
@@ -55,8 +53,8 @@ namespace AccSaber.Managers
 
         private int pageNumber;
 
-        public AccSaberManager(AccSaberPanelViewController accSaberPanelController,
-            AccSaberLeaderboardViewController mainLeaderboardViewController,
+        public AccSaberManager(
+            AccSaberPanelViewController accSaberPanelController,
             CustomLeaderboardManager customLeaderboardManager,
             SiraLog log,
             LevelCollectionNavigationController navigationController,
@@ -66,13 +64,11 @@ namespace AccSaber.Managers
             List<AccSaberLeaderboardEntry> leaderboardEntries,
             List<INotifyViewActivated> notifyViewActivateds,
             AccSaberLeaderboardViewController accSaberLeaderboardViewController,
-            AccSaberPanelViewController panelViewController,
             List<AccSaberUserModel> accSaberUserModels, 
             LeaderboardDownloader leaderboardDownloader)
         {
             _customLeaderboardManager = customLeaderboardManager;
             _log = log;
-            _mainLeaderboardViewController = mainLeaderboardViewController;
             _accSaberPanelController = accSaberPanelController;
             _navigationController = navigationController;
             _accSaberData = accSaberData;
@@ -81,10 +77,10 @@ namespace AccSaber.Managers
             _leaderboardEntries = leaderboardEntries;
             _notifyViewActivateds = notifyViewActivateds;
             _accSaberLeaderboardViewController = accSaberLeaderboardViewController;
-            _panelViewController = panelViewController;
             _accSaberUserModels = accSaberUserModels;
             _leaderboardDownloader = leaderboardDownloader;
         }
+
 
         public void Initialize()
         {
@@ -92,6 +88,9 @@ namespace AccSaber.Managers
             _accSaberLeaderboardViewController.PageRequested += OnPageRequested;
             _navigationController.didChangeLevelDetailContentEvent += OnSongChange;
             _navigationController.didChangeDifficultyBeatmapEvent += OnBeatmapChange;
+
+            difficultyBeatmapUpdaters = new List<IDifficultyBeatmapUpdater> { _accSaberLeaderboardViewController };
+            _leaderboardEntriesUpdaters = new List<ILeaderboardEntriesUpdater> { _accSaberLeaderboardViewController };
         }
 
         public void Dispose()
@@ -122,7 +121,7 @@ namespace AccSaber.Managers
 
         private void HandleCategoryColorChange()
         {
-            _panelViewController.RefreshAndSkewBannerColor();
+            _accSaberPanelController.RefreshAndSkewBannerColor();
         }
 
 
@@ -185,7 +184,8 @@ namespace AccSaber.Managers
             {
                 return;
             }
-        
+            _log.Debug(leaderboardEntries);
+
             foreach (var updater in _leaderboardEntriesUpdaters)
             {
                 await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => 

@@ -22,7 +22,7 @@ namespace AccSaber.UI.Leaderboard
 {
     [HotReload(RelativePathToLayout = @"..\Leaderboard\AccSaberLeaderboardView.bsml")]
     [ViewDefinition("AccSaber.UI.Leaderboard.AccSaberLeaderboardView.bsml")]
-    public class AccSaberLeaderboardViewController : BSMLAutomaticViewController, ILeaderboardEntriesUpdater
+    public class AccSaberLeaderboardViewController : BSMLAutomaticViewController, ILeaderboardEntriesUpdater, IDifficultyBeatmapUpdater
     {
         [Inject] private SiraLog _log;
         [Inject] private LevelCollectionNavigationController _collectionNavigation;
@@ -39,6 +39,8 @@ namespace AccSaber.UI.Leaderboard
 
         private List<Button> infoButtons;
         private IDifficultyBeatmap difficultyBeatmap;
+        private List<LeaderboardTableView.ScoreData> scoreData;
+        private int myScorePos;
         private readonly CancellationTokenSource _cancellationToken = new();
 
         private int pageNumber;
@@ -80,6 +82,11 @@ namespace AccSaber.UI.Leaderboard
                 leaderboardSource.ClearCache();
             }
             PageNumber = 0;
+
+            if (scoreData != null) {
+                leaderboard.SetScores(scoreData, myScorePos);
+                _loadingControl.SetActive(false);
+            }
         }
 
         private int PageNumber
@@ -109,25 +116,23 @@ namespace AccSaber.UI.Leaderboard
             }
         }
 
-        private async Task SetScores(IReadOnlyList<AccSaberLeaderboardEntry> leaderboardEntries)
+        private void SetScores(IReadOnlyList<AccSaberLeaderboardEntry> leaderboardEntries)
         {
-            var scores = new List<LeaderboardTableView.ScoreData>();
-            var myScorePos = -1;
+            scoreData = new List<LeaderboardTableView.ScoreData>();
+            myScorePos = -1;
 
             if (infoButtons != null)
             {
-                await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() =>
+                foreach (var button in infoButtons)
                 {
-                    foreach (var button in infoButtons)
-                    {
-                        button.gameObject.SetActive(false);
-                    }
-                });
+                    button.gameObject.SetActive(false);
+                }
             }
 
             if (leaderboardEntries == null || leaderboardEntries.Count == 0)
             {
-                scores.Add(new LeaderboardTableView.ScoreData(0,
+                // 15 min?!
+                scoreData.Add(new LeaderboardTableView.ScoreData(0,
                     "<size=75%>Scores have yet to be refreshed. Please allow up to 15 min...</size>",
                     0, false));
                 _log.Debug("Set non-refreshed leaderboard");
@@ -135,41 +140,34 @@ namespace AccSaber.UI.Leaderboard
             else
             {
                 var userID = _userID.UserInfo.platformUserId;
-
-                await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() =>
+                for (var i = 0; i < (leaderboardEntries.Count > 10 ? 10 : leaderboardEntries.Count); i++)
                 {
-                    for (var i = 0; i < (leaderboardEntries.Count > 10 ? 10 : leaderboardEntries.Count); i++)
+                    scoreData.Add(new LeaderboardTableView.ScoreData(leaderboardEntries[i].score,
+                        $"<color=#FFFFFF><size=90%>{leaderboardEntries[i].name}</size></color> - <size=70%>(<color=yellow>{leaderboardEntries[i].acc:P2}</color>)</size> - <size=65%>(<color=#00FFAE>{leaderboardEntries[i].ap:F2}ap</color>)</size>",
+                        leaderboardEntries[i].rank,
+                        false));
+
+                    _log.Debug("Set score to leaderboard: " + leaderboardEntries[i].name);
+
+                    if (infoButtons != null)
                     {
-                        scores.Add(new LeaderboardTableView.ScoreData(leaderboardEntries[i].score,
-                            $"<color=#FFFFFF><size=90%>{leaderboardEntries[i].name}</size></color> - <size=70%>(<color=yellow>{leaderboardEntries[i].acc:P2}</color>)</size> - <size=65%>(<color=#00FFAE>{leaderboardEntries[i].ap:F2}ap</color>)</size>",
-                            leaderboardEntries[i].rank,
-                            false));
-
-                        _log.Debug("Set scores to leaderboard.");
-
-                        if (infoButtons != null)
-                        {
-                            infoButtons[i].gameObject.SetActive(true);
-                            var hoverHint = infoButtons[i].GetComponent<HoverHint>();
-                            hoverHint.text = $"Score Set: {leaderboardEntries[i].timeSet}";
-                            _log.Debug($"Set info hover hint to {hoverHint.text}");
-                        }
-
-                        if (leaderboardEntries[i].playerId == userID)
-                        {
-                            myScorePos = i;
-                        }
+                        infoButtons[i].gameObject.SetActive(true);
+                        var hoverHint = infoButtons[i].GetComponent<HoverHint>();
+                        hoverHint.text = $"Score Set: {leaderboardEntries[i].timeSet}";
+                        _log.Debug($"Set info hover hint to {hoverHint.text}");
                     }
-                });
+
+                    if (leaderboardEntries[i].playerId == userID)
+                    {
+                        myScorePos = i;
+                    }
+                }
             }
 
             if (_loadingControl != null && leaderboard != null)
             {
-                await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() =>
-                {
-                    leaderboard.SetScores(scores, myScorePos);
-                    _loadingControl.SetActive(false);
-                });
+                leaderboard.SetScores(scoreData, myScorePos);
+                _loadingControl.SetActive(false);
             }
         }
 
@@ -212,28 +210,26 @@ namespace AccSaber.UI.Leaderboard
             ChangeButtonScale(button10, 0.425f);
         }
 
-        public void DifficultyBeatmapUpdated(IDifficultyBeatmap difficultyBeatmap,
-            AccSaberLeaderboardEntry levelInfoEntry)
+        public void DifficultyBeatmapUpdated(IDifficultyBeatmap difficultyBeatmap, List<AccSaberLeaderboardEntry> leaderboardEntries)
         {
-            if (levelInfoEntry != null)
+            this.difficultyBeatmap = difficultyBeatmap;
+            if (isActiveAndEnabled)
             {
-                this.difficultyBeatmap = difficultyBeatmap;
-                if (isActiveAndEnabled)
+                foreach (var leaderboardSource in _leaderboardSources)
                 {
-                    foreach (var leaderboardSource in _leaderboardSources)
-                    {
-                        leaderboardSource.ClearCache();
-                    }
-                    PageNumber = 0;
+                    leaderboardSource.ClearCache();
                 }
+                PageNumber = 0;
             }
+
+            LeaderboardEntriesUpdated(leaderboardEntries);
         }
 
         public void LeaderboardEntriesUpdated(List<AccSaberLeaderboardEntry> leaderboardEntries)
         {
             _leaderboardEntries = leaderboardEntries;
             NotifyPropertyChanged(nameof(DownEnabled));
-            _ = SetScores(leaderboardEntries);
+            SetScores(leaderboardEntries);
         }
 
         [UIAction("cell-selected")]

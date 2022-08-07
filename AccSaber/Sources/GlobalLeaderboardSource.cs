@@ -8,7 +8,6 @@ using AccSaber.Utils;
 using SiraUtil.Logging;
 using SiraUtil.Web;
 using UnityEngine;
-using Zenject;
 
 namespace AccSaber.Sources
 {
@@ -16,11 +15,18 @@ namespace AccSaber.Sources
     {
         private readonly IHttpService _httpService;
         private readonly List<List<AccSaberLeaderboardEntry>> leaderboardCache = new();
-        [Inject] private SiraLog _log;
-        
-        public string HoverHint => "Global";
+        private readonly SiraLog _siraLog;
+
+        public GlobalLeaderboardSource(IHttpService httpService, SiraLog siraLog)
+        {
+            _httpService = httpService;
+            _siraLog = siraLog;
+        }
+
+        public virtual string UrlPostFix => "";
+        public virtual string HoverHint => "Global";
         private Sprite _icon;
-        public Sprite Icon
+        public virtual Sprite Icon
         {
             get
             {
@@ -33,38 +39,42 @@ namespace AccSaber.Sources
         }
 
         public async Task<List<AccSaberLeaderboardEntry>> GetScoresAsync(IDifficultyBeatmap difficultyBeatmap,
-            int page = 0, CancellationToken cancellationToken = default)
+            int page = 0, CancellationToken? cancellationToken = null)
         {
             if (leaderboardCache.Count < page + 1)
             {
-                _log.Debug("knob");
+                _siraLog.Debug("knob");
                 var beatmapString = GameUtils.DifficultyBeatmapToString(difficultyBeatmap);
-                _log.Debug("knob2");
+                _siraLog.Debug("knob2");
                 if (beatmapString == null)
                 {
-                    _log.Debug("beatmap is null");
+                    _siraLog.Debug("beatmap is null");
                     return null;
                 }
                 
                 try
                 {
-                    var response = await _httpService.GetAsync(Constants.API_URL + Constants.LEADERBOARDS_ENDPOINT + beatmapString +
-                                                               Constants.PAGINATION_PAGE + page + Constants.PAGINATION_PAGESIZE + 10, cancellationToken: cancellationToken);
-                    _log.Debug("sent request, going to parse.");
+                    string url = Constants.API_URL + Constants.LEADERBOARDS_ENDPOINT + beatmapString + UrlPostFix +
+                                                               Constants.PAGINATION_PAGE + page + Constants.PAGINATION_PAGESIZE + 10;
+                    _siraLog.Debug(url);
+                    var response = await _httpService.GetAsync(url, cancellationToken: cancellationToken ?? CancellationToken.None);
+                    _siraLog.Debug("sent request, going to parse.");
                     var scores = await ResponseParser.ParseWebResponse<List<AccSaberLeaderboardEntry>>(response);
                     if (scores != null)
                     {
-                        _log.Debug($"Adding scores from {scores} with count {scores.Count}");
+                        _siraLog.Debug($"Adding scores from {scores} with count {scores.Count}");
                         leaderboardCache.Add(scores);
                     }
                 }
                 catch (TaskCanceledException)
-                { }
+                {
+                    return null;
+                }
             }
             return page < leaderboardCache.Count ? leaderboardCache[page] : null;
         }
 
-        public bool Scrollable => true;
+        public virtual bool Scrollable => true;
         public void ClearCache() => leaderboardCache.Clear();
     }
 }

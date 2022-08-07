@@ -5,8 +5,6 @@ namespace AccSaber.Utils
 {
     public class GameUtils
     {
-        
-        
         public static string DifficultyBeatmapToString(IDifficultyBeatmap difficultyBeatmap)
         {
             if (difficultyBeatmap.level is CustomPreviewBeatmapLevel)

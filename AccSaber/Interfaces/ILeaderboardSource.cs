@@ -12,7 +12,7 @@ namespace AccSaber.Interfaces
         public Sprite Icon { get; }
 
         public Task<List<AccSaberLeaderboardEntry>> GetScoresAsync(IDifficultyBeatmap difficultyBeatmap,
-            int page = 0, CancellationToken cancellationToken = default);
+            int page, CancellationToken? cancellationToken);
 
         public bool Scrollable { get; }
 
