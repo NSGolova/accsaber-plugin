@@ -1,6 +1,7 @@
 using AccSaber.Utils;
 using SiraUtil.Logging;
 using SiraUtil.Web;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace AccSaber.Sources
@@ -30,6 +31,10 @@ namespace AccSaber.Sources
         }
 
         override public bool Scrollable => false;
-        override public string UrlPostFix => "/" + Constants.AROUND_ME + _userIDUtils.UserInfo.platformUserId;
+
+        
+        override public async Task<string> UrlPostFix() { 
+            return "/" + Constants.AROUND_ME + (await _userIDUtils.GetUserInfo()).platformUserId;
+        }
     }
 }

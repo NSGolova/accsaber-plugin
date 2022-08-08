@@ -139,7 +139,7 @@ namespace AccSaber.UI.Leaderboard
             }
             else
             {
-                var userID = _userID.UserInfo.platformUserId;
+                var userID = _userID.UserInfo?.platformUserId ?? "";
                 for (var i = 0; i < (leaderboardEntries.Count > 10 ? 10 : leaderboardEntries.Count); i++)
                 {
                     scoreData.Add(new LeaderboardTableView.ScoreData(leaderboardEntries[i].score,

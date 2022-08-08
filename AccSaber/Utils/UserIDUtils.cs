@@ -18,12 +18,16 @@ namespace AccSaber.Utils
 
         public void Initialize()
         {
-            GetUserID();
+            _ = GetUserInfo();
         }
 
-        private async void GetUserID()
+        public async Task<UserInfo> GetUserInfo()
         {
-            UserInfo = await _userModel.GetUserInfo();
+            if (UserInfo == null) {
+                UserInfo = await _userModel.GetUserInfo();
+            }
+
+            return UserInfo;
         }
     }
 }

@@ -23,7 +23,10 @@ namespace AccSaber.Sources
             _siraLog = siraLog;
         }
 
-        public virtual string UrlPostFix => "";
+        public virtual async Task<string> UrlPostFix() {
+            return "";
+        }
+
         public virtual string HoverHint => "Global";
         private Sprite _icon;
         public virtual Sprite Icon
@@ -54,7 +57,7 @@ namespace AccSaber.Sources
                 
                 try
                 {
-                    string url = Constants.API_URL + Constants.LEADERBOARDS_ENDPOINT + beatmapString + UrlPostFix +
+                    string url =  Constants.API_URL + Constants.LEADERBOARDS_ENDPOINT + beatmapString + await UrlPostFix() +
                                                                Constants.PAGINATION_PAGE + page + Constants.PAGINATION_PAGESIZE + 10;
                     _siraLog.Debug(url);
                     var response = await _httpService.GetAsync(url, cancellationToken: cancellationToken ?? CancellationToken.None);
